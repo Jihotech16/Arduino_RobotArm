@@ -148,14 +148,16 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
       robot.add(baseBottom);
 
       const baseBody = prepareCadMesh(baseBodyGeo, printedGreen);
-      baseBody.rotation.x = -Math.PI / 2;
+      // The housing prints like a lid; its open side faces the bottom plate.
+      baseBody.rotation.x = Math.PI / 2;
       baseBody.position.y = 0.36;
       robot.add(baseBody);
 
       yawGroup.position.y = 0.68;
       robot.add(yawGroup);
       const stepperHat = prepareCadMesh(stepperHatGeo, printedGreen);
-      stepperHat.rotation.x = -Math.PI / 2;
+      // The separate hat is also installed upside-down on the housing.
+      stepperHat.rotation.x = Math.PI / 2;
       stepperHat.position.y = 0.15;
       yawGroup.add(stepperHat);
       const baseBracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.42), printedGreen);

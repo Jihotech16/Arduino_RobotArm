@@ -228,7 +228,7 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
       const jointAngle = THREE.MathUtils.degToRad(current.arm - 90);
       // The linked servos bend the arm forward/back around their horizontal axes.
       jointPivots[0].rotation.x = jointAngle * 0.72;
-      jointPivots[1].rotation.x = -jointAngle * 0.86;
+      jointPivots[1].rotation.x = jointAngle * 0.86;
       jointPivots[2].rotation.x = jointAngle * 0.68;
       const clawAngle = THREE.MathUtils.clamp(
         THREE.MathUtils.mapLinear(current.gripper, 10, 170, 0.46, 0.04),

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 
 type RobotArmTwinProps = {
   baseSteps: number;
@@ -11,12 +12,16 @@ type RobotArmTwinProps = {
 
 type Pose = { base: number; arm: number; gripper: number };
 
+const MODEL_PATH = `${import.meta.env.BASE_URL}models/robot-arm/`;
+const MM_TO_SCENE = 0.011;
+
 export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: RobotArmTwinProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const targetRef = useRef<Pose>({ base: 0, arm: 90, gripper: 40 });
   const [webglReady, setWebglReady] = useState(true);
+  const [modelReady, setModelReady] = useState(false);
 
   useEffect(() => {
     targetRef.current = { base: baseSteps, arm: armAngle, gripper: gripperAngle };
@@ -37,32 +42,32 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xf2f0e9, 7, 13);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 50);
-    camera.position.set(5.2, 3.7, 5.4);
+    camera.position.set(5.2, 3.6, 5.6);
     cameraRef.current = camera;
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xf2f0e9, 0);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.domElement.setAttribute("aria-label", "실시간 로봇팔 3D 모델");
+    renderer.domElement.setAttribute("aria-label", "3MF 부품으로 조립한 실시간 로봇팔 3D 모델");
     mount.prepend(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
-    controls.target.set(0, 1.85, 0);
-    controls.minDistance = 3.5;
+    controls.target.set(0, 1.8, 0);
+    controls.minDistance = 3.4;
     controls.maxDistance = 11;
     controls.maxPolarAngle = Math.PI * 0.49;
     controlsRef.current = controls;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x53615b, 2.2));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x50605a, 2.4));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.4);
     keyLight.position.set(4, 7, 5);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(1024, 1024);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0xa8f0d1, 1.8);
+    const rimLight = new THREE.DirectionalLight(0xa8f0d1, 1.9);
     rimLight.position.set(-4, 3, -3);
     scene.add(rimLight);
 
@@ -70,76 +75,138 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     grid.position.y = -0.01;
     scene.add(grid);
 
-    const green = new THREE.MeshStandardMaterial({ color: 0x00a970, roughness: 0.55, metalness: 0.08 });
-    const mint = new THREE.MeshStandardMaterial({ color: 0xa8f0d1, roughness: 0.62 });
-    const orange = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.48 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x17201e, roughness: 0.38, metalness: 0.3 });
-    const blue = new THREE.MeshStandardMaterial({ color: 0x2567ad, roughness: 0.42, metalness: 0.12 });
+    const printedGreen = new THREE.MeshStandardMaterial({ color: 0x08a968, roughness: 0.66, metalness: 0.02 });
+    const printedDark = new THREE.MeshStandardMaterial({ color: 0x26302d, roughness: 0.62 });
+    const servoBlue = new THREE.MeshStandardMaterial({ color: 0x145d9e, roughness: 0.42, metalness: 0.12 });
+    const servoLabel = new THREE.MeshStandardMaterial({ color: 0x242b2a, roughness: 0.58 });
+    const hornWhite = new THREE.MeshStandardMaterial({ color: 0xf1eee5, roughness: 0.5 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0xbcc5c1, roughness: 0.3, metalness: 0.7 });
 
     const robot = new THREE.Group();
+    robot.rotation.y = -0.25;
     scene.add(robot);
 
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.83, 0.95, 0.32, 48), dark);
-    base.position.y = 0.16;
-    base.castShadow = base.receiveShadow = true;
-    robot.add(base);
-    const baseTop = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.72, 0.25, 48), green);
-    baseTop.position.y = 0.42;
-    baseTop.castShadow = true;
-    robot.add(baseTop);
-
     const yawGroup = new THREE.Group();
-    yawGroup.position.y = 0.54;
-    robot.add(yawGroup);
-    const pedestal = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.46, 0.66), mint);
-    pedestal.position.y = 0.23;
-    pedestal.castShadow = true;
-    yawGroup.add(pedestal);
+    const shoulder = new THREE.Group();
+    const elbow = new THREE.Group();
+    const wrist = new THREE.Group();
+    const leftClawPivot = new THREE.Group();
+    const rightClawPivot = new THREE.Group();
+    const jointPivots = [shoulder, elbow, wrist];
 
-    const jointMeshes: THREE.Group[] = [];
-    const addJoint = (parent: THREE.Group, length: number, material: THREE.Material) => {
-      const pivot = new THREE.Group();
-      parent.add(pivot);
-      jointMeshes.push(pivot);
-
-      const servo = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.43, 0.48), blue);
-      servo.position.y = 0.04;
-      servo.castShadow = true;
-      pivot.add(servo);
-      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.72, 24), orange);
+    const makeServo = (parent: THREE.Group, y = 0) => {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.19), servoBlue);
+      body.position.set(0, y, 0);
+      body.castShadow = true;
+      parent.add(body);
+      const label = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.012), servoLabel);
+      label.position.set(0, y, 0.101);
+      parent.add(label);
+      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 20), metal);
       axle.rotation.x = Math.PI / 2;
+      axle.position.set(0, y + 0.13, 0);
       axle.castShadow = true;
-      pivot.add(axle);
-      const link = new THREE.Mesh(new THREE.BoxGeometry(0.27, length, 0.34), material);
-      link.position.y = length / 2;
-      link.castShadow = true;
-      pivot.add(link);
-      const next = new THREE.Group();
-      next.position.y = length;
-      pivot.add(next);
-      return next;
+      parent.add(axle);
+      const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.025, 24), hornWhite);
+      horn.rotation.x = Math.PI / 2;
+      horn.position.set(0, y + 0.13, 0.165);
+      parent.add(horn);
     };
 
-    const shoulderRoot = new THREE.Group();
-    shoulderRoot.position.y = 0.48;
-    yawGroup.add(shoulderRoot);
-    const elbowRoot = addJoint(shoulderRoot, 1.28, green);
-    const wristRoot = addJoint(elbowRoot, 1.08, mint);
-    const toolRoot = addJoint(wristRoot, 0.78, green);
+    const prepareCadMesh = (geometry: THREE.BufferGeometry, material: THREE.Material) => {
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.scale.setScalar(MM_TO_SCENE);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
 
-    const wristBlock = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.34, 0.56), dark);
-    wristBlock.position.y = 0.18;
-    wristBlock.castShadow = true;
-    toolRoot.add(wristBlock);
-    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.22, 0.4), orange);
-    palm.position.y = 0.46;
-    palm.castShadow = true;
-    toolRoot.add(palm);
-    const leftJaw = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.65, 0.28), mint);
-    const rightJaw = leftJaw.clone();
-    leftJaw.position.y = rightJaw.position.y = 0.83;
-    leftJaw.castShadow = rightJaw.castShadow = true;
-    toolRoot.add(leftJaw, rightJaw);
+    const placeLink = (mesh: THREE.Mesh, parent: THREE.Group, fullLengthMm: number) => {
+      mesh.rotation.z = Math.PI / 2;
+      mesh.position.y = (fullLengthMm * MM_TO_SCENE) / 2;
+      parent.add(mesh);
+    };
+
+    const loader = new STLLoader();
+    let disposed = false;
+    Promise.all([
+      loader.loadAsync(`${MODEL_PATH}base-bottom.stl`),
+      loader.loadAsync(`${MODEL_PATH}base-body.stl`),
+      loader.loadAsync(`${MODEL_PATH}joint-1.stl`),
+      loader.loadAsync(`${MODEL_PATH}joint-2.stl`),
+      loader.loadAsync(`${MODEL_PATH}gripper.stl`),
+      loader.loadAsync(`${MODEL_PATH}claw.stl`),
+      loader.loadAsync(`${MODEL_PATH}claw-insert.stl`),
+    ]).then(([baseBottomGeo, baseBodyGeo, joint1Geo, joint2Geo, gripperGeo, clawGeo, insertGeo]) => {
+      if (disposed) return;
+
+      const baseBottom = prepareCadMesh(baseBottomGeo, printedDark);
+      baseBottom.rotation.x = -Math.PI / 2;
+      baseBottom.position.y = 0.04;
+      robot.add(baseBottom);
+
+      const baseBody = prepareCadMesh(baseBodyGeo, printedGreen);
+      baseBody.rotation.x = -Math.PI / 2;
+      baseBody.position.y = 0.36;
+      robot.add(baseBody);
+
+      const turntable = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 0.12, 48), printedGreen);
+      turntable.position.y = 0.71;
+      turntable.castShadow = true;
+      robot.add(turntable);
+
+      yawGroup.position.y = 0.74;
+      robot.add(yawGroup);
+      const baseBracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.42), printedGreen);
+      baseBracket.position.y = 0.18;
+      baseBracket.castShadow = true;
+      yawGroup.add(baseBracket);
+      makeServo(yawGroup, 0.22);
+
+      shoulder.position.y = 0.36;
+      yawGroup.add(shoulder);
+      const joint1 = prepareCadMesh(joint1Geo, printedGreen);
+      placeLink(joint1, shoulder, 76.5);
+      makeServo(shoulder, 0.07);
+
+      elbow.position.y = 0.66;
+      shoulder.add(elbow);
+      const joint2 = prepareCadMesh(joint2Geo, printedGreen);
+      placeLink(joint2, elbow, 71.5);
+      makeServo(elbow, 0.06);
+
+      wrist.position.y = 0.61;
+      elbow.add(wrist);
+      const gripper = prepareCadMesh(gripperGeo, printedGreen);
+      placeLink(gripper, wrist, 100);
+      makeServo(wrist, 0.08);
+
+      const gripperServo = new THREE.Group();
+      gripperServo.position.y = 0.9;
+      wrist.add(gripperServo);
+      makeServo(gripperServo, 0);
+      const insert = prepareCadMesh(insertGeo, hornWhite);
+      insert.rotation.z = Math.PI / 2;
+      insert.position.set(0, 0.13, 0.18);
+      gripperServo.add(insert);
+
+      leftClawPivot.position.set(-0.08, 0.14, 0);
+      rightClawPivot.position.set(0.08, 0.14, 0);
+      gripperServo.add(leftClawPivot, rightClawPivot);
+      const leftClaw = prepareCadMesh(clawGeo, printedGreen);
+      const rightClaw = prepareCadMesh(clawGeo.clone(), printedGreen);
+      leftClaw.rotation.z = Math.PI / 2;
+      rightClaw.rotation.z = Math.PI / 2;
+      leftClaw.scale.z *= -1;
+      leftClaw.position.y = rightClaw.position.y = 0.32;
+      leftClawPivot.add(leftClaw);
+      rightClawPivot.add(rightClaw);
+
+      setModelReady(true);
+    }).catch(() => {
+      if (!disposed) setModelReady(false);
+    });
 
     const current: Pose = { base: baseSteps, arm: armAngle, gripper: gripperAngle };
     let frame = 0;
@@ -152,12 +219,12 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
 
       yawGroup.rotation.y = (current.base / 2048) * Math.PI * 2;
       const jointAngle = THREE.MathUtils.degToRad(current.arm - 90);
-      jointMeshes[0].rotation.z = jointAngle * 0.72;
-      jointMeshes[1].rotation.z = -jointAngle * 0.86;
-      jointMeshes[2].rotation.z = jointAngle * 0.68;
-      const jawGap = THREE.MathUtils.mapLinear(current.gripper, 15, 85, 0.36, 0.14);
-      leftJaw.position.x = -jawGap;
-      rightJaw.position.x = jawGap;
+      jointPivots[0].rotation.z = jointAngle * 0.72;
+      jointPivots[1].rotation.z = -jointAngle * 0.86;
+      jointPivots[2].rotation.z = jointAngle * 0.68;
+      const clawAngle = THREE.MathUtils.mapLinear(current.gripper, 15, 85, 0.38, 0.06);
+      leftClawPivot.rotation.z = clawAngle;
+      rightClawPivot.rotation.z = -clawAngle;
 
       controls.update();
       renderer.render(scene, camera);
@@ -177,6 +244,7 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     animate();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
@@ -199,20 +267,20 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     const controls = controlsRef.current;
     if (!camera || !controls) return;
     camera.position.set(...position);
-    controls.target.set(0, 1.85, 0);
+    controls.target.set(0, 1.8, 0);
     controls.update();
   };
 
   return (
     <div className="twin-viewport" ref={mountRef}>
       {!webglReady && <p className="webgl-error">이 브라우저에서 3D 가속을 사용할 수 없습니다.</p>}
-      <div className="twin-badge"><i className={connected ? "online" : ""} />{connected ? "LIVE STATE" : "PREVIEW POSE"}</div>
+      <div className="twin-badge"><i className={connected ? "online" : ""} />{modelReady ? connected ? "LIVE · 3MF CAD" : "3MF CAD READY" : "CAD LOADING"}</div>
       <div className="view-controls" aria-label="3D 카메라 시점">
         <button onClick={() => setView([0, 2.6, 7])}>정면</button>
         <button onClick={() => setView([7, 2.6, 0])}>측면</button>
         <button onClick={() => setView([0.1, 8, 0.1])}>위</button>
       </div>
-      <span className="orbit-hint">DRAG TO ORBIT · SCROLL TO ZOOM</span>
+      <span className="orbit-hint">3MF PRINT PARTS · DRAG TO ORBIT · SCROLL TO ZOOM</span>
     </div>
   );
 }

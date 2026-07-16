@@ -38,7 +38,7 @@ export function RobotArmController() {
   const [activeKey, setActiveKey] = useState<Command | null>(null);
   const [lastCommand, setLastCommand] = useState("연결 대기 중");
   const [armAngle, setArmAngle] = useState(90);
-  const [gripperAngle, setGripperAngle] = useState(40);
+  const [gripperAngle, setGripperAngle] = useState(90);
   const [baseSteps, setBaseSteps] = useState(0);
   const [log, setLog] = useState<string[]>(["SYSTEM  Web Serial 준비 완료"]);
   const portRef = useRef<SerialPortLike | null>(null);
@@ -58,17 +58,33 @@ export function RobotArmController() {
     setActiveKey(null);
   }, []);
 
+  const applyOptimisticCommand = useCallback((command: Command) => {
+    switch (command) {
+      case "w": setArmAngle((angle) => Math.min(165, angle + 2)); break;
+      case "s": setArmAngle((angle) => Math.max(15, angle - 2)); break;
+      case "a": setBaseSteps((steps) => steps - 8); break;
+      case "d": setBaseSteps((steps) => steps + 8); break;
+      case "q": setGripperAngle((angle) => Math.max(10, angle - 2)); break;
+      case "e": setGripperAngle((angle) => Math.min(170, angle + 2)); break;
+      case "r":
+        setArmAngle(90);
+        setGripperAngle(90);
+        break;
+    }
+  }, []);
+
   const writeCommand = useCallback(async (command: Command) => {
     const writer = writerRef.current;
     if (!writer) return;
     try {
       await writer.write(new TextEncoder().encode(command));
+      applyOptimisticCommand(command);
       setLastCommand(`${command.toUpperCase()} · ${LABELS[command]}`);
     } catch {
       addLog("ERROR   명령 전송 실패");
       stopRepeat();
     }
-  }, [addLog, stopRepeat]);
+  }, [addLog, applyOptimisticCommand, stopRepeat]);
 
   const processLine = useCallback((line: string) => {
     const state = line.match(/^STATE\s+(-?\d+)\s+(\d+)\s+(\d+)/);
@@ -234,7 +250,7 @@ export function RobotArmController() {
             <div className="telemetry-heading"><span>DIGITAL TWIN</span><b>OPEN-LOOP</b></div>
             <div className="telemetry-value"><span>BASE / YAW</span><strong>{Math.round((baseSteps / 2048) * 360)}°</strong><small>{baseSteps} STEPS</small></div>
             <div className="telemetry-value"><span>JOINTS / LINKED</span><strong>{armAngle}°</strong><small>J1 · J2 · J3</small></div>
-            <div className="telemetry-value"><span>GRIPPER</span><strong>{gripperAngle}°</strong><small>{gripperAngle < 45 ? "OPEN" : "CLOSED"}</small></div>
+            <div className="telemetry-value"><span>GRIPPER</span><strong>{gripperAngle}°</strong><small>{gripperAngle < 80 ? "OPEN" : gripperAngle > 100 ? "CLOSED" : "CENTER"}</small></div>
             <p className="twin-note"><b>SIM</b> 명령 상태를 시각화합니다. 실제 위치 피드백에는 엔코더 또는 각도 센서가 필요합니다.</p>
           </div>
         </div>
@@ -257,7 +273,7 @@ export function RobotArmController() {
             <div className="control-block">
               <div className="control-title"><span>GRIPPER</span><b>{gripperAngle}°</b></div>
               <div className="key-pair">{keyButton("q", "열기")}{keyButton("e", "닫기")}</div>
-              <div className="meter warm"><span style={{ width: `${(gripperAngle / 100) * 100}%` }} /></div>
+              <div className="meter warm"><span style={{ width: `${(gripperAngle / 180) * 100}%` }} /></div>
             </div>
           </div>
           <button className="home-button" disabled={!connected} onClick={() => void writeCommand("r")}><span>R</span> 관절·그리퍼 홈 위치로</button>

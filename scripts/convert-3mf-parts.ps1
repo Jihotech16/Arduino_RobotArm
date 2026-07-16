@@ -12,6 +12,7 @@ $output = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $parts = @(
   @{ Source = 'Base Bottom_1.model'; Output = 'base-bottom.stl' },
   @{ Source = 'Body9_5.model'; Output = 'base-body.stl' },
+  @{ Source = 'Stepper Hat_1.model'; Output = 'stepper-hat.stl' },
   @{ Source = 'Joint 1 v5_6.model'; Output = 'joint-1.stl' },
   @{ Source = 'Joint 2 v5_7.model'; Output = 'joint-2.stl' },
   @{ Source = 'Gripper v5_4.model'; Output = 'gripper.stl' },

@@ -15,10 +15,10 @@ const int STEPPER_CHUNK = 8;
 const int SERVO_INCREMENT = 2;
 const int ARM_MIN = 15;
 const int ARM_MAX = 165;
-const int GRIPPER_MIN = 15;
-const int GRIPPER_MAX = 85;
+const int GRIPPER_MIN = 10;
+const int GRIPPER_MAX = 170;
 const int ARM_HOME = 90;
-const int GRIPPER_HOME = 40;
+const int GRIPPER_HOME = 90;
 
 Servo armServos;
 Servo gripperServo;

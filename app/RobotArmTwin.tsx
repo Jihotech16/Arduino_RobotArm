@@ -19,7 +19,7 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
   const mountRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const targetRef = useRef<Pose>({ base: 0, arm: 90, gripper: 40 });
+  const targetRef = useRef<Pose>({ base: 0, arm: 90, gripper: 90 });
   const [webglReady, setWebglReady] = useState(true);
   const [modelReady, setModelReady] = useState(false);
 
@@ -133,12 +133,13 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     Promise.all([
       loader.loadAsync(`${MODEL_PATH}base-bottom.stl`),
       loader.loadAsync(`${MODEL_PATH}base-body.stl`),
+      loader.loadAsync(`${MODEL_PATH}stepper-hat.stl`),
       loader.loadAsync(`${MODEL_PATH}joint-1.stl`),
       loader.loadAsync(`${MODEL_PATH}joint-2.stl`),
       loader.loadAsync(`${MODEL_PATH}gripper.stl`),
       loader.loadAsync(`${MODEL_PATH}claw.stl`),
       loader.loadAsync(`${MODEL_PATH}claw-insert.stl`),
-    ]).then(([baseBottomGeo, baseBodyGeo, joint1Geo, joint2Geo, gripperGeo, clawGeo, insertGeo]) => {
+    ]).then(([baseBottomGeo, baseBodyGeo, stepperHatGeo, joint1Geo, joint2Geo, gripperGeo, clawGeo, insertGeo]) => {
       if (disposed) return;
 
       const baseBottom = prepareCadMesh(baseBottomGeo, printedDark);
@@ -151,20 +152,19 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
       baseBody.position.y = 0.36;
       robot.add(baseBody);
 
-      const turntable = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 0.12, 48), printedGreen);
-      turntable.position.y = 0.71;
-      turntable.castShadow = true;
-      robot.add(turntable);
-
-      yawGroup.position.y = 0.74;
+      yawGroup.position.y = 0.68;
       robot.add(yawGroup);
+      const stepperHat = prepareCadMesh(stepperHatGeo, printedGreen);
+      stepperHat.rotation.x = -Math.PI / 2;
+      stepperHat.position.y = 0.15;
+      yawGroup.add(stepperHat);
       const baseBracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.42), printedGreen);
-      baseBracket.position.y = 0.18;
+      baseBracket.position.y = 0.34;
       baseBracket.castShadow = true;
       yawGroup.add(baseBracket);
-      makeServo(yawGroup, 0.22);
+      makeServo(yawGroup, 0.37);
 
-      shoulder.position.y = 0.36;
+      shoulder.position.y = 0.53;
       yawGroup.add(shoulder);
       const joint1 = prepareCadMesh(joint1Geo, printedGreen);
       placeLink(joint1, shoulder, 76.5);
@@ -222,7 +222,11 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
       jointPivots[0].rotation.z = jointAngle * 0.72;
       jointPivots[1].rotation.z = -jointAngle * 0.86;
       jointPivots[2].rotation.z = jointAngle * 0.68;
-      const clawAngle = THREE.MathUtils.mapLinear(current.gripper, 15, 85, 0.38, 0.06);
+      const clawAngle = THREE.MathUtils.clamp(
+        THREE.MathUtils.mapLinear(current.gripper, 10, 170, 0.46, 0.04),
+        0.04,
+        0.46,
+      );
       leftClawPivot.rotation.z = clawAngle;
       rightClawPivot.rotation.z = -clawAngle;
 

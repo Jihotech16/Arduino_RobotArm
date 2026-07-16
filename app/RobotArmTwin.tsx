@@ -142,6 +142,11 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
     ]).then(([baseBottomGeo, baseBodyGeo, stepperHatGeo, joint1Geo, joint2Geo, gripperGeo, clawGeo, insertGeo]) => {
       if (disposed) return;
 
+      // Moving parts retain different print-bed coordinates in the source 3MF.
+      // Recenter each one so the hierarchy below can assemble them at its pivots.
+      [baseBottomGeo, baseBodyGeo, stepperHatGeo, joint1Geo, joint2Geo, gripperGeo, clawGeo, insertGeo]
+        .forEach((geometry) => geometry.center());
+
       const baseBottom = prepareCadMesh(baseBottomGeo, printedDark);
       baseBottom.rotation.x = -Math.PI / 2;
       baseBottom.position.y = 0.04;
@@ -155,8 +160,6 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
 
       yawGroup.position.y = 0.68;
       robot.add(yawGroup);
-      // This 3MF keeps its original print-bed offset, so center the part before assembly.
-      stepperHatGeo.center();
       const stepperHat = prepareCadMesh(stepperHatGeo, printedGreen);
       // The separate hat is also installed upside-down on the housing.
       stepperHat.rotation.x = Math.PI / 2;

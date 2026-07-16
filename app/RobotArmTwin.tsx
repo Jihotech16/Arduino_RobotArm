@@ -205,7 +205,7 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
       const rightClaw = prepareCadMesh(clawGeo.clone(), printedGreen);
       leftClaw.rotation.z = Math.PI / 2;
       rightClaw.rotation.z = Math.PI / 2;
-      leftClaw.scale.z *= -1;
+      leftClaw.scale.x *= -1;
       leftClaw.position.y = rightClaw.position.y = 0.32;
       leftClawPivot.add(leftClaw);
       rightClawPivot.add(rightClaw);

@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+
+const RobotArmTwin = lazy(() =>
+  import("./RobotArmTwin").then((module) => ({ default: module.RobotArmTwin })),
+);
 
 type SerialPortLike = {
   open(options: { baudRate: number }): Promise<void>;
@@ -217,9 +221,28 @@ export function RobotArmController() {
         </div>
       </section>
 
+      <section className="panel twin-panel">
+        <div className="panel-heading">
+          <div><span className="index">01</span><h2>3D 디지털 트윈</h2></div>
+          <span className="hint">Arduino 상태값과 실시간 동기화</span>
+        </div>
+        <div className="twin-layout">
+          <Suspense fallback={<div className="twin-loading">3D MODEL LOADING…</div>}>
+            <RobotArmTwin baseSteps={baseSteps} armAngle={armAngle} gripperAngle={gripperAngle} connected={connected} />
+          </Suspense>
+          <div className="twin-telemetry">
+            <div className="telemetry-heading"><span>DIGITAL TWIN</span><b>OPEN-LOOP</b></div>
+            <div className="telemetry-value"><span>BASE / YAW</span><strong>{Math.round((baseSteps / 2048) * 360)}°</strong><small>{baseSteps} STEPS</small></div>
+            <div className="telemetry-value"><span>JOINTS / LINKED</span><strong>{armAngle}°</strong><small>J1 · J2 · J3</small></div>
+            <div className="telemetry-value"><span>GRIPPER</span><strong>{gripperAngle}°</strong><small>{gripperAngle < 45 ? "OPEN" : "CLOSED"}</small></div>
+            <p className="twin-note"><b>SIM</b> 명령 상태를 시각화합니다. 실제 위치 피드백에는 엔코더 또는 각도 센서가 필요합니다.</p>
+          </div>
+        </div>
+      </section>
+
       <section className="dashboard-grid">
         <article className="panel primary-panel">
-          <div className="panel-heading"><div><span className="index">01</span><h2>실시간 제어</h2></div><span className="hint">키보드 또는 버튼을 길게 누르세요</span></div>
+          <div className="panel-heading"><div><span className="index">02</span><h2>실시간 제어</h2></div><span className="hint">키보드 또는 버튼을 길게 누르세요</span></div>
           <div className="control-groups">
             <div className="control-block">
               <div className="control-title"><span>LINKED JOINTS</span><b>{armAngle}°</b></div>
@@ -242,7 +265,7 @@ export function RobotArmController() {
 
         <aside className="side-stack">
           <article className="panel pin-panel">
-            <div className="panel-heading"><div><span className="index">02</span><h2>핀 구성</h2></div></div>
+            <div className="panel-heading"><div><span className="index">03</span><h2>핀 구성</h2></div></div>
             <div className="pin-list">
               <div><span className="pin-number">03</span><p><b>관절 서보 × 3</b><small>동일 신호 · 동시 제어</small></p><i className="servo-color" /></div>
               <div><span className="pin-number">05</span><p><b>그리퍼 서보</b><small>열기 / 닫기</small></p><i className="grip-color" /></div>
@@ -252,7 +275,7 @@ export function RobotArmController() {
           </article>
 
           <article className="panel console-panel">
-            <div className="panel-heading"><div><span className="index">03</span><h2>시리얼 로그</h2></div><span className="live-label">LIVE</span></div>
+            <div className="panel-heading"><div><span className="index">04</span><h2>시리얼 로그</h2></div><span className="live-label">LIVE</span></div>
             <div className="console">
               {log.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
               <p className="cursor-line">› {lastCommand}<span className="cursor" /></p>

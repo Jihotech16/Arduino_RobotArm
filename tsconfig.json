@@ -12,7 +12,8 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
   },
   "include": ["src", "app/RobotArmController.tsx", "app/RobotArmTwin.tsx", "vite.config.ts"]
 }

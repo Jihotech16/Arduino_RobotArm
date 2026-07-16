@@ -155,6 +155,8 @@ export function RobotArmTwin({ baseSteps, armAngle, gripperAngle, connected }: R
 
       yawGroup.position.y = 0.68;
       robot.add(yawGroup);
+      // This 3MF keeps its original print-bed offset, so center the part before assembly.
+      stepperHatGeo.center();
       const stepperHat = prepareCadMesh(stepperHatGeo, printedGreen);
       // The separate hat is also installed upside-down on the housing.
       stepperHat.rotation.x = Math.PI / 2;
